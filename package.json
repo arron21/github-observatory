@@ -1,0 +1,11 @@
+{
+  "name": "arron21-github-d3-observatory",
+  "version": "1.0.0",
+  "description": "Animated D3.js v7 interactive visualization of Arron McCrory's (@arron21) 115 GitHub repositories (2012-2026)",
+  "type": "module",
+  "scripts": {
+    "enrich": "node scripts/enrich-data.mjs",
+    "build": "node scripts/build-standalone.mjs",
+    "start": "node scripts/serve.mjs"
+  }
+}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>arron21 // Animated D3.js GitHub Repository Observatory</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="vendor/d3.min.js"></script>
+  <script src="data/github-data.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Identity & Telemetry Bar -->
+    <header class="top-header">
+      <div class="identity-block">
+        <div class="avatar-ring">
+          <img id="user-avatar" src="https://avatars.githubusercontent.com/u/2738674?v=4" alt="Arron McCrory" />
+          <span class="status-dot" title="Hireable & Active"></span>
+        </div>
+        <div class="identity-text">
+          <h1>
+            <a href="https://github.com/arron21" target="_blank" rel="noopener">Arron McCrory</a>
+            <span class="badge-mono">@arron21</span>
+          </h1>
+          <div class="identity-sub">
+            <span>GitHub since Nov 2012</span>
+            <span>•</span>
+            <a href="https://arronmccrory.com/" target="_blank" rel="noopener">arronmccrory.com ↗</a>
+            <span>•</span>
+            <span id="sync-status">115 Public Repositories</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="kpi-item">
+          <span class="kpi-value" id="kpi-repos">115</span>
+          <span class="kpi-label">Visible Repos</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-value" id="kpi-sources">103 / 12</span>
+          <span class="kpi-label">Original / Forks</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-value" id="kpi-langs">12</span>
+          <span class="kpi-label">Languages</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-value" id="kpi-demos">20</span>
+          <span class="kpi-label">Live Deployments</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-value" id="kpi-size">1.74 GB</span>
+          <span class="kpi-label">Total Footprint</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-pill" id="btn-live-sync" title="Fetch latest repository data directly from api.github.com/users/arron21">
+          <span>↻</span> Live API Sync
+        </button>
+        <button class="btn-pill" id="btn-theme-toggle" title="Toggle Dark Observatory / Swiss Paper Theme">
+          <span>◐</span> Theme
+        </button>
+      </div>
+    </header>
+
+    <!-- Multi-View & Control Bar -->
+    <nav class="control-bar" aria-label="Visualization Controls">
+      <div class="view-tabs" role="tablist">
+        <button class="view-tab active" data-view="constellation" role="tab">
+          <span>✦</span> Force Constellation
+        </button>
+        <button class="view-tab" data-view="timeline" role="tab">
+          <span>⧗</span> Chronological Beeswarm
+        </button>
+        <button class="view-tab" data-view="pack" role="tab">
+          <span>◎</span> Circle Packing
+        </button>
+        <button class="view-tab" data-view="sunburst" role="tab">
+          <span>❂</span> Radial Sunburst
+        </button>
+        <button class="view-tab" data-view="treemap" role="tab">
+          <span>▦</span> Swiss Treemap
+        </button>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Cluster:</span>
+        <select id="select-group" class="select-pill">
+          <option value="domain">By Creative Domain (6 Themes)</option>
+          <option value="language">By Primary Language (12 Langs)</option>
+        </select>
+
+        <span class="control-label">Size:</span>
+        <select id="select-size" class="select-pill">
+          <option value="perceptual">Codebase Footprint (Perceptual)</option>
+          <option value="recency">Recency & Activity Score</option>
+          <option value="uniform">Uniform Nodes</option>
+        </select>
+
+        <span class="control-label">Palette:</span>
+        <select id="select-palette" class="select-pill">
+          <option value="wada">Sanzo Wada Pigments</option>
+          <option value="github">GitHub Linguist Official</option>
+          <option value="swiss">Swiss International Neon</option>
+        </select>
+
+        <button class="btn-pill" id="btn-filter-forks" title="Toggle Forked Repositories">
+          Include Forks (12)
+        </button>
+
+        <button class="btn-pill" id="btn-filter-live" title="Filter to Repositories with Live Deployed URLs">
+          Live Demos Only
+        </button>
+
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input type="text" id="input-search" class="search-input" placeholder="Search 115 repos (e.g. diablo, css)..." />
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Interactive D3 Stage -->
+    <main class="stage-container" id="stage-container">
+      <canvas id="ambient-canvas"></canvas>
+      <svg id="d3-stage">
+        <defs>
+          <filter id="glow-filter" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <radialGradient id="core-gradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ff5a36" stop-opacity="1" />
+            <stop offset="65%" stop-color="#e11d48" stop-opacity="0.85" />
+            <stop offset="100%" stop-color="#ff5a36" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+      </svg>
+
+      <!-- Left Interactive Legend & Cluster Filter -->
+      <aside class="legend-panel" id="legend-panel">
+        <div class="legend-header">
+          <span class="legend-title" id="legend-title">Creative Domains</span>
+          <button class="legend-reset" id="legend-reset">Reset Filter</button>
+        </div>
+        <div class="legend-list" id="legend-list"></div>
+      </aside>
+
+      <!-- Top-Center Stage HUD -->
+      <div class="stage-hud">
+        <span id="hud-mode-description">
+          <strong>Force Constellation:</strong> Drag nodes, scroll to zoom, click any cluster or repository to inspect.
+        </span>
+        <div class="hud-zoom-controls">
+          <button class="hud-btn" id="btn-zoom-in" title="Zoom In">+</button>
+          <button class="hud-btn" id="btn-zoom-out" title="Zoom Out">−</button>
+          <button class="hud-btn" id="btn-zoom-reset" title="Reset Camera">⟲</button>
+        </div>
+      </div>
+
+      <!-- Right Slide-in Repository Inspector Drawer -->
+      <aside class="inspector-drawer" id="inspector-drawer">
+        <div class="inspector-top">
+          <div>
+            <div class="badge-mono" id="insp-type-badge" style="display:inline-block;margin-bottom:4px;">ORIGINAL REPO</div>
+            <h2 class="inspector-title" id="insp-name">dictionary-of-color-combinations</h2>
+          </div>
+          <button class="inspector-close" id="insp-close" title="Close Inspector">✕</button>
+        </div>
+
+        <div class="inspector-badges" id="insp-badges"></div>
+
+        <p class="inspector-desc" id="insp-desc">
+          Interactive online archive of Sanzo Wada's A Dictionary of Color Combinations (Vol. 1 & Vol. 2) with 450+ palettes, 171 pigments, and one-click HEX/RGB/CMYK/CSS copy.
+        </p>
+
+        <div class="inspector-grid">
+          <div class="metric-box">
+            <div class="m-label">Created</div>
+            <div class="m-val" id="insp-created">2026-10-21</div>
+          </div>
+          <div class="metric-box">
+            <div class="m-label">Last Pushed</div>
+            <div class="m-val" id="insp-pushed">2026-10-21</div>
+          </div>
+          <div class="metric-box">
+            <div class="m-label">Codebase Size</div>
+            <div class="m-val" id="insp-size">220 KB</div>
+          </div>
+          <div class="metric-box">
+            <div class="m-label">Stars / Forks</div>
+            <div class="m-val" id="insp-stars">★ 0  ⑂ 1</div>
+          </div>
+        </div>
+
+        <div class="inspector-links" id="insp-links"></div>
+
+        <div class="related-section">
+          <h4 id="insp-related-title">Sibling Repositories in Cluster</h4>
+          <div class="related-list" id="insp-related-list"></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Chronological Playback & D3 Streamgraph Scrubber (2013 - 2026) -->
+    <footer class="timeline-dock">
+      <div class="playback-controls">
+        <button class="play-btn" id="btn-play-history">
+          <span id="play-icon">▶</span> <span id="play-label">Replay 2013→2026</span>
+        </button>
+        <div class="year-readout">
+          <span class="yr-main" id="scrubber-year-label">2013 – 2026</span>
+          <span class="yr-sub" id="scrubber-count-label">All 115 Repos</span>
+        </div>
+      </div>
+
+      <div class="streamgraph-wrap" title="Click or drag across the timeline streamgraph to filter repositories up to any year (2013–2026)">
+        <svg id="timeline-mini-svg"></svg>
+      </div>
+
+      <div class="era-caption" id="era-caption">
+        <strong>2026 ERA // AI, WebGPU & Swiss Design</strong>
+        Sanzo Wada Color Archive, Raster CSS, WebGPU RPGs, Diablo Engines (PixiJS/Phaser/Excalibur) & Astro.
+      </div>
+    </footer>
+  </div>
+
+  <!-- Floating Tooltip -->
+  <div class="d3-tooltip" id="d3-tooltip"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
